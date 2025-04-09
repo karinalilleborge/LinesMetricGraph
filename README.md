@@ -10,6 +10,9 @@ in your R-environment.
 Please make sure you have the newest versions of the dependent packages: `rSPDE`. `MetricGraph` and `inlabru`.
 
 If you have any questions, please refer to 
-*contact info*
+
+Karina Lilleborge
+
+karina.lilleborge@gmail.com
 
 
