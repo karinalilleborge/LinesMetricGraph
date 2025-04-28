@@ -1,16 +1,7 @@
 # inlabru MAPPER ----
-
-# required packages/suggest packages
-#' @rawNamespace S3method(inlabru::bru_get_mapper,rspde_metric_graph)
-#' @rawNamespace S3method(inlabru::ibm_n, bm_metric_graph)
-#' @rawNamespace S3method(inlabru::ibm_values, bm_metric_graph)
-#' @rawNamespace S3method(inlabru::ibm_jacobian, bm_metric_graph)
-#' @rawNamespace S3method(inlabru::bru_mapper, metric_graph)
-
-#' @title Wrapper that calls bru_mapper with correct input
-#' @param model Model class (contains a metric graph object)
-#' @param \dots arguments passed to sub-methods
-#' @rdname bru_get_mapper_rspde_metric_graph
+# Wrapper that calls bru_mapper with correct input
+# model: Model class (contains a metric graph object)
+# \dots: arguments passed to sub-methods
 bru_get_mapper.rspde_metric_graph <- function(model, ...) {
   if ((model[["f"]]$n) %% (fm_dof(model[["mesh"]])) != 0) {
     stop(paste0(
@@ -23,11 +14,10 @@ bru_get_mapper.rspde_metric_graph <- function(model, ...) {
   )
 }
 
-#' @title bru_mapper for the metric_graph class
-#' @param mesh a metric_graph object
-#' @param n_rep number of components in linear predictor
-#' @param \dots arguments passed to sub-methods
-#' @rdname bm_metric_graph
+# bru_mapper for the metric_graph class
+# mesh: a metric_graph object
+# n_rep: number of components in linear predictor
+# \dots: arguments passed to sub-methods
 bru_mapper.metric_graph <- function(mesh, n_rep = 1, ...) {
   mapper <- inlabru::bru_mapper_fmesher(mesh)
   if (n_rep > 1) {
@@ -36,21 +26,19 @@ bru_mapper.metric_graph <- function(mesh, n_rep = 1, ...) {
   mapper
 }
 
-#' @describeIn bm_metric_graph Returns the degrees of freedom (number of
-#'   vertices in the mesh)
-#' @param mapper A `bm_metric_graph` object
+# bm_metric_graph: Returns the degrees of freedom (number of vertices in the mesh)
+# mapper: A `bm_metric_graph` object
 ibm_n.bm_metric_graph <- function(mapper, ...) {
   mesh <- mapper[["mesh"]]
   n_rep <- mapper[["n_rep"]]
   return(n_rep * fmesher::fm_dof(mesh))
 }
-#' @describeIn bm_metric_graph Returns a vector with indices for the
-#'   degrees of freedom
+# bm_metric_graph: Returns a vector with indices for the degrees of freedom
 ibm_values.bm_metric_graph <- function(mapper, ...) {
   seq_len(inlabru::ibm_n(mapper))
 }
-#' @describeIn bm_metric_graph Returns the mapping matrix between
-#' @param input Data input for the mapper
+# bm_metric_graph: Returns the mapping matrix between
+# input: Data input for the mapper
 ibm_jacobian.bm_metric_graph <- function(mapper, input, ...) {
   mesh <- mapper[["mesh"]] # metric graph object
   n_rep <- mapper[["n_rep"]]
@@ -67,18 +55,14 @@ ibm_jacobian.bm_metric_graph <- function(mapper, input, ...) {
 
 # fmesher functions ----
 
-#' @title Internal helper functions for metric graph evaluation
-#'
-#' @description Methods called internally by [fm_basis()] methods.
-#' @param x metric_graph object
-#' @param loc Observation locations, can be either MGG coordinates, MGM
-#'   coordinates or Euclidean coordinates (passed to fm_bary())
-#' @param weights Optional weight vector, one weight for each location
-#' @inheritParams fm_basis
-#' @export
-#' @keywords internal
-#' @returns A `fm_basis` object; a list of evaluator information objects,
-#' at least a matrix `A` and logical vector `ok`.
+# Internal helper functions for metric graph evaluation
+# Methods called internally by [fm_basis()] methods.
+# x: metric_graph object
+# loc: Observation locations, can be either MGG coordinates, MGM
+#      coordinates or Euclidean coordinates (passed to fm_bary())
+# weights: Optional weight vector, one weight for each location
+# returns A `fm_basis` object; a list of evaluator information objects, 
+#         at least a matrix `A` and logical vector `ok`.
 fm_basis.metric_graph <- function(x,
                                   loc,
                                   weights = NULL,
@@ -90,9 +74,7 @@ fm_basis.metric_graph <- function(x,
     weights <- rep(weights, NROW(loc))
   }
 
-  # derivatives <- !is.null(derivatives) && derivatives
   info <- list()
-  # use metric graph function to get basis functions
   # obtain bary wrt to MGM
   barys <- fm_bary(x, loc, MGG = FALSE)
   n <- NROW(barys)
@@ -114,12 +96,9 @@ fm_basis.metric_graph <- function(x,
 }
 
 
-#' @describeIn fm_bary Return a tibble with elements
-#' `fm_bary`
-#'
-#' @param MGG indicator for the barycentric coordinates related to the graph
-#'   (MGG) or mesh (MGM). Default is MGG coords
-#' @export
+# fm_bary: Return a tibble with elements
+# MGG: indicator for the barycentric coordinates related to the graph
+#      (MGG) or mesh (MGM). Default is MGG coords
 fm_bary.metric_graph <- function(mesh,
                                  loc,
                                  MGG = TRUE,
@@ -174,48 +153,20 @@ fm_bary.metric_graph <- function(mesh,
   return(bary_coord)
 }
 
-
-#' @rdname fm_manifold
-#' @export
 fm_manifold_get.metric_graph <- function() {
   return("G1")
 }
 
 
-#' @rdname fm_dof
-#' @export
+# fm_dof: degrees of freedom
 fm_dof.metric_graph <- function(x) {
   NROW(x[["mesh"]][["VtE"]])
 }
 
-
-#' @export
-#' @describeIn fm_int `metric_graph` integration. Supported samplers: * `NULL`
-#'   for integration over the entire domain; * A tibble with a named column
-#'   containing a matrix with single edge intervals (ordered), and optionally a
-#'   `weight` column.
-#' @examples
-#' if (requireNamespace("MetricGraph")) {
-#'   edge1 <- rbind(c(0, 0), c(1, 0))
-#'   edge2 <- rbind(c(0, 0), c(0, 1))
-#'   edge3 <- rbind(c(0, 1), c(-1, 1))
-#'   theta <- seq(from = pi, to = 3 * pi / 2, length.out = 20)
-#'   edge4 <- cbind(sin(theta), 1 + cos(theta))
-#'   edges <- list(edge1, edge2, edge3, edge4)
-#'   graph <- MetricGraph::metric_graph$new(edges = edges)
-#'   graph$build_mesh(h = 0.01)
-#'   p1 <- simple_path_MGG(
-#'     graph = graph,
-#'     start_MGG = cbind(1, 0.2),
-#'     edges = c(2),
-#'     end_MGG = cbind(3, 0.8)
-#'   )
-#'   samplers <- tibble::tibble(x = list(p1), weight = c(1))
-#'   ips <- fm_int(
-#'     graph,
-#'     samplers
-#'   )
-#' }
+# fm_int `metric_graph` integration. Supported samplers: * `NULL`
+#     for integration over the entire domain; * A tibble with a named column
+#     containing a matrix with single edge intervals (ordered), and optionally a
+#     `weight` column.
 fm_int.metric_graph <- function(domain,
                                 samplers = NULL,
                                 name = "x",
@@ -335,34 +286,12 @@ fm_int.metric_graph <- function(domain,
 
 
 # MetricGraph specific functions----
-#' @title Make a ("graph", "fm_bary") object from Euclidean coordinates
-#' @description
-#' Create a (`graph`, `fm_bary`) object from Euclidean coordinates.
-#'
-#' @param loc Euclidean coords (if not on graph, they are mapped to the closest
-#'   point on graph)
-#' @param graph metric_graph that the location should be mapped to.
-#' @author Karina Lilleborge \email{karina.lilleborge@@gmail.com}
-#' @returns A (`mesh`, `fm_bary`) object
-#' @export
-#' @family object creation and conversion
-#' @examples
-#' if (requireNamespace("MetricGraph")) {
-#'   edge1 <- rbind(c(0, 0), c(1, 0))
-#'   edge2 <- rbind(c(0, 0), c(0, 1))
-#'   edge3 <- rbind(c(0, 1), c(-1, 1))
-#'   theta <- seq(from = pi, to = 3 * pi / 2, length.out = 20)
-#'   edge4 <- cbind(sin(theta), 1 + cos(theta))
-#'   edges <- list(edge1, edge2, edge3, edge4)
-#'   graph <- MetricGraph::metric_graph$new(edges = edges)
-#'   m <- Euclidean_to_graph(
-#'     cbind(0, 1),
-#'     graph
-#'   )
-#'   # c(2,1)
-#'   m
-#' }
-#'
+
+# Make a ("graph", "fm_bary") object from Euclidean coordinates
+# Create a (`graph`, `fm_bary`) object from Euclidean coordinates.
+# loc: Euclidean coords (if not on graph, they are mapped to the closest
+#      point on graph)
+# graph: metric_graph that the location should be mapped to.
 Euclidean_to_graph <- function(loc, graph) {
   res <- graph$coordinates(XY = loc)
   # check distance from original points:
@@ -375,33 +304,10 @@ Euclidean_to_graph <- function(loc, graph) {
   return(as_MGG(loc = res))
 }
 
-#' @title Make a (`mesh`, `fm_bary`) object from MGG coordinates
-#' @description
-#' Create a (`mesh`, `fm_bary`) object from MGG coordinates.
-#'
-#' @param graph metric_graph that the location should be mapped to.
-#' @param coord MGG coordinates
-#' @author Karina Lilleborge \email{karina.lilleborge@@gmail.com}
-#' @returns A (`mesh`, `fm_bary`) object
-#' @export
-#' @family object creation and conversion
-#' @examples
-#' if (requireNamespace("MetricGraph", quietly = TRUE)) {
-#'   edge1 <- rbind(c(0, 0), c(1, 0))
-#'   edge2 <- rbind(c(0, 0), c(0, 1))
-#'   edge3 <- rbind(c(0, 1), c(-1, 1))
-#'   theta <- seq(from = pi, to = 3 * pi / 2, length.out = 20)
-#'   edge4 <- cbind(sin(theta), 1 + cos(theta))
-#'   edges <- list(edge1, edge2, edge3, edge4)
-#'   graph <- MetricGraph::metric_graph$new(edges = edges)
-#'   graph$build_mesh(h = 0.005)
-#'   mgm <- MGG_to_MGM(
-#'     as_MGG(cbind(1, 0.5)),
-#'     graph
-#'   )
-#'   mgm
-#' }
-#'
+# Make a (`mesh`, `fm_bary`) object from MGG coordinates
+#  Create a (`mesh`, `fm_bary`) object from MGG coordinates.
+# graph: metric_graph that the location should be mapped to.
+# coord: MGG coordinates
 MGG_to_MGM <- function(coord, graph) {
   if (is.null(graph$mesh)) {
     stop("There is no mesh")
@@ -451,12 +357,6 @@ MGG_to_MGM <- function(coord, graph) {
       # order the mesh_MGG locations:
       ordering <- order(edge_MGG$where[, 2])
       edge_MGG_o <- edge_MGG[ordering, ] # unique(c(0, edge_MGG[ordering, ], 1)) # EDIT 21.01 from: edge_MGG[ordering, ]
-      # edge_MGG_o <- rbind(tibble::tibble(index=coord$index[i], where=cbind(1,0)),
-      #                     edge_MGG[ordering, ],
-      #                     tibble::tibble(index=coord$index[i], where=cbind(0,1))) #these are ordered #edge_MGG[ordering, ]
-      # #remove duplicates:
-      # edge_MGG_o <- edge_MGG_o[!dplyr::duplicated(edge_MGG_o$where[,2]), ]
-      # find the mesh point index where coord[i,] is next to
       index_on_edge <- which.max((edge_MGG_o$where[, 2] - as.numeric(coord$where[i, 2])) >= 0)
       if (index_on_edge) {
         # coord[i, ] is between these two mesh locs
@@ -484,34 +384,12 @@ MGG_to_MGM <- function(coord, graph) {
   new_coord
 }
 
-#' @title Convert (`mesh`, `fm_bary`) coordinates to a (`graph`, `fm_bary`)
-#'   coordinates
-#' @description
-#' Create a (`graph`, `fm_bary`) object from MGM coordinates.
-#'
-#' @param graph metric_graph that the location should be mapped to.
-#' @param coord MGM coordinates
-#' @author Karina Lilleborge \email{karina.lilleborge@@gmail.com}
-#' @returns An (`graph`, `fm_bary`) object
-#' @export
-#' @family object creation and conversion
-#' @examples
-#' if (requireNamespace("MetricGraph", quietly = TRUE)) {
-#'   edge1 <- rbind(c(0, 0), c(1, 0))
-#'   edge2 <- rbind(c(0, 0), c(0, 1))
-#'   edge3 <- rbind(c(0, 1), c(-1, 1))
-#'   theta <- seq(from = pi, to = 3 * pi / 2, length.out = 20)
-#'   edge4 <- cbind(sin(theta), 1 + cos(theta))
-#'   edges <- list(edge1, edge2, edge3, edge4)
-#'   graph <- MetricGraph::metric_graph$new(edges = edges)
-#'   graph$build_mesh(h = 0.01)
-#'   mgg <- MGM_to_MGG(
-#'     as_MGM(cbind(5, 1)),
-#'     graph
-#'   )
-#'   mgg
-#' }
-#'
+# Convert (`mesh`, `fm_bary`) coordinates to a (`graph`, `fm_bary`)
+#   coordinates
+# Create a (`graph`, `fm_bary`) object from MGM coordinates.
+# graph: metric_graph that the location should be mapped to.
+# coord: MGM coordinates
+# returns An (`graph`, `fm_bary`) object
 MGM_to_MGG <- function(coord, graph) {
   stopifnot(inherits(coord, "mesh") && inherits(coord, "fm_bary"))
   mesh_loc <- graph$mesh$VtE
@@ -560,35 +438,12 @@ MGM_to_MGG <- function(coord, graph) {
 }
 
 
-#' @title Make a (`mesh`, `fm_bary`) object
-#' @description
-#' Create a (`mesh`, `fm_bary`) object
-#'
-#' @param loc MGM coordinates
-#' @param graph metric_graph that the location should be mapped to (must be
-#'   provided if loc should be converted)
-#' @author Karina Lilleborge \email{karina.lilleborge@@gmail.com}
-#' @returns An (`graph`, `fm_bary`) object from `matrix`, `data.frame`, `list`,
-#'   `tibble` etc.
-#' @export
-#' @family object creation and conversion
-#' @examples
-#' if (requireNamespace("MetricGraph", quietly = TRUE)) {
-#'   edge1 <- rbind(c(0, 0), c(1, 0))
-#'   edge2 <- rbind(c(0, 0), c(0, 1))
-#'   edge3 <- rbind(c(0, 1), c(-1, 1))
-#'   theta <- seq(from = pi, to = 3 * pi / 2, length.out = 20)
-#'   edge4 <- cbind(sin(theta), 1 + cos(theta))
-#'   edges <- list(edge1, edge2, edge3, edge4)
-#'   graph <- MetricGraph::metric_graph$new(edges = edges)
-#'   graph$build_mesh(h = 0.01)
-#'   m <- as_MGM(
-#'     cbind(1, 1),
-#'     graph
-#'   )
-#'   class(m) # "mesh", "fm_bary", "tbl_df", "tbl", "data.frame"
-#' }
-#'
+# Make a (`mesh`, `fm_bary`) object
+# loc: MGM coordinates
+# graph: metric_graph that the location should be mapped to (must be
+#        provided if loc should be converted)
+# returns An (`graph`, `fm_bary`) object from `matrix`, `data.frame`, `list`,
+#        `tibble` etc.
 as_MGM <- function(loc, graph = NULL) {
   if (inherits(loc, "mesh") && inherits(loc, "fm_bary")) {
     return(loc)
@@ -644,31 +499,11 @@ as_MGM <- function(loc, graph = NULL) {
 }
 
 
-#' @title Make a (`graph`, `fm_bary`) object
-#' @description
-#' Create a (`graph`, `fm_bary`) object from `matrix`, `data.frame`, `list`,
-#' `tibble` etc.
-#'
-#' @param loc MGG coordinates
-#' @param graph metric_graph that the location should be mapped to (must be
-#'   provided if loc should be converted)
-#' @author Karina Lilleborge \email{karina.lilleborge@@gmail.com}
-#' @returns A (`mesh`, `fm_bary`) object
-#' @export
-#' @family object creation and conversion
-#' @examples
-#' if (requireNamespace("MetricGraph", quietly = TRUE)) {
-#'   edge1 <- rbind(c(0, 0), c(1, 0))
-#'   edge2 <- rbind(c(0, 0), c(0, 1))
-#'   edge3 <- rbind(c(0, 1), c(-1, 1))
-#'   theta <- seq(from = pi, to = 3 * pi / 2, length.out = 20)
-#'   edge4 <- cbind(sin(theta), 1 + cos(theta))
-#'   edges <- list(edge1, edge2, edge3, edge4)
-#'   graph <- MetricGraph::metric_graph$new(edges = edges)
-#'   m <- as_MGG(cbind(1, 0.5))
-#'   class(m) # "graph", "fm_bary", "tbl_df", "tbl", "data.frame"
-#' }
-#'
+#  Create a (`graph`, `fm_bary`) object from `matrix`, `data.frame`, `list`,
+#  `tibble` etc.
+# loc: MGG coordinates
+# graph: metric_graph that the location should be mapped to (must be
+#        provided if loc should be converted)
 as_MGG <- function(loc, graph = NULL) {
   if (inherits(loc, "graph") && inherits(loc, "fm_bary")) {
     return(loc)
@@ -719,35 +554,11 @@ as_MGG <- function(loc, graph = NULL) {
 }
 
 
-#' @title Make an inter edge interval on graph object
-#' @description
-#' Create an `graph_interval` object.
-#'
-#' @param start_MGG Start location for inter edge interval.
-#' @param end_MGG End location for inter edge interval.
-#' @param graph `metric_graph` that the interval should be mapped to. Must be
-#'   provided if input should be converted
-#' @author Karina Lilleborge \email{karina.lilleborge@@gmail.com}
-#' @returns An `graph_interval` object
-#' @export
-#' @family object creation and conversion
-#' @examples
-#' if (requireNamespace("MetricGraph", quietly = TRUE)) {
-#'   edge1 <- rbind(c(0, 0), c(1, 0))
-#'   edge2 <- rbind(c(0, 0), c(0, 1))
-#'   edge3 <- rbind(c(0, 1), c(-1, 1))
-#'   theta <- seq(from = pi, to = 3 * pi / 2, length.out = 20)
-#'   edge4 <- cbind(sin(theta), 1 + cos(theta))
-#'   edges <- list(edge1, edge2, edge3, edge4)
-#'   graph <- MetricGraph::metric_graph$new(edges = edges)
-#'   int <- as_graph_interval(
-#'     cbind(1, 0.8),
-#'     cbind(1, 0.5),
-#'     graph
-#'   )
-#'   int
-#' }
-#'
+# Make an inter edge interval on graph object
+# start_MGG: Start location for inter edge interval.
+# end_MGG: End location for inter edge interval.
+# graph: `metric_graph` that the interval should be mapped to. Must be
+#        provided if input should be converted
 as_graph_interval <- function(start_MGG,
                               end_MGG,
                               graph = NULL) {
@@ -769,37 +580,12 @@ as_graph_interval <- function(start_MGG,
   )
 }
 
-#' @title Make an interval on graph object
-#' @description
-#' Create a `graph_interval` object from known start (MGG), end (MGG) and
-#' visiting edges (MGG).
-#'
-#' @param graph metric_graph that the interval should be mapped to.
-#' @param start_MGG MGG coordinates for start
-#' @param edges Ordered list of edge indices related to MGG
-#' @param end_MGG MGG coordinates for end
-#' @author Karina Lilleborge \email{karina.lilleborge@@gmail.com}
-#' @returns A `graph_interval` object
-#' @export
-#' @family object creation and conversion
-#' @examples
-#' if (requireNamespace("MetricGraph")) {
-#'   edge1 <- rbind(c(0, 0), c(1, 0))
-#'   edge2 <- rbind(c(0, 0), c(0, 1))
-#'   edge3 <- rbind(c(0, 1), c(-1, 1))
-#'   theta <- seq(from = pi, to = 3 * pi / 2, length.out = 20)
-#'   edge4 <- cbind(sin(theta), 1 + cos(theta))
-#'   edges <- list(edge1, edge2, edge3, edge4)
-#'   graph <- MetricGraph::metric_graph$new(edges = edges)
-#'   path <- simple_path_MGG(
-#'     graph,
-#'     start_MGG = cbind(1, 0.5),
-#'     edges = c(2),
-#'     end_MGG = cbind(3, 0.6)
-#'   )
-#'   path
-#' }
-#'
+# Create a `graph_interval` object from known start (MGG), end (MGG) and
+# visiting edges (MGG).
+# graph: metric_graph that the interval should be mapped to.
+# start_MGG: MGG coordinates for start
+# edges: Ordered list of edge indices related to MGG
+# end_MGG: MGG coordinates for end
 simple_path_MGG <- function(graph,
                             start_MGG,
                             edges,
@@ -946,40 +732,11 @@ simple_path_MGG <- function(graph,
   return(path)
 }
 
-#' @title Make an interval on graph object from sf object
-#' @description
-#' Create a tibble of `graph_interval` objects from `sf::st_geometry`
-#' (`LINESTRING`) and a column with "id".
-#'
-#' @param graph metric_graph that the interval should be mapped to.
-#' @param geom_path `sf::st_geometry` (`LINESTRING`) on a graph
-#' @author Karina Lilleborge \email{karina.lilleborge@@gmail.com}
-#' @returns A tibble containing a set of `graph_interval` objects and id
-#'   referring to what `LINESTRING` it was constructed from.
-#' @export
-#' @family object creation and conversion
-#' @examples
-#' if (requireNamespace("MetricGraph") &&
-#'   requireNamespace("sf")) {
-#'   edge1 <- rbind(c(0, 0), c(1, 0))
-#'   edge2 <- rbind(c(0, 0), c(0, 1))
-#'   edge3 <- rbind(c(0, 1), c(-1, 1))
-#'   theta <- seq(from = pi, to = 3 * pi / 2, length.out = 20)
-#'   edge4 <- cbind(sin(theta), 1 + cos(theta))
-#'   edges <- list(edge1, edge2, edge3, edge4)
-#'   graph <- MetricGraph::metric_graph$new(edges = edges)
-#'   graph$build_mesh(h = 0.01)
-#'   geom_path <- sf::st_linestring(cbind(
-#'     c(0, 0, 0.7),
-#'     c(0.5, 0, 0)
-#'   ))
-#'   path <- geom_path_to_path_MGG(
-#'     sf::st_geometry(geom_path),
-#'     graph
-#'   )
-#'   path
-#' }
-#'
+
+# Create a tibble of `graph_interval` objects from `sf::st_geometry`
+#  (`LINESTRING`) and a column with "id".
+# graph: metric_graph that the interval should be mapped to.
+# geom_path: `sf::st_geometry` (`LINESTRING`) on a graph
 geom_path_to_path_MGG <- function(geom_path, graph) {
   # new function name for this (as_graph_interval(input) check what input is)
   if (!inherits(geom_path, "sfc_LINESTRING")) {
@@ -1000,9 +757,6 @@ geom_path_to_path_MGG <- function(geom_path, graph) {
     # a line should give us one path
     line <- internal_XY[internal_XY[, "L1"] == k, ]
     line_MGG <- fm_bary(graph, as.matrix(line[, c("X", "Y")]), MGG = TRUE)
-    # line_MGG <- graph$coordinates(XY = line[, c("X", "Y")])
-    # convert to ("graph", "fm_bary")
-    # line_MGG <- as_MGG(line_MGG)
     # index for number of segments added
     j <- 0
     # storing the segments (start and end separately)
